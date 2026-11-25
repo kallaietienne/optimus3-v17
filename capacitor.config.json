@@ -1,0 +1,14 @@
+{
+  "appId": "hu.optimus3.app",
+  "appName": "Optimus3",
+  "webDir": "www",
+  "backgroundColor": "#0F141A",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

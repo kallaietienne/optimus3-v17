@@ -1,0 +1,2291 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F141A" />
+  <title>Optimus3 17v12</title>
+  <link rel="stylesheet" href="lib/leaflet/leaflet.css" />
+  <style>
+    :root {
+      --bg: #0F141A;
+      --card: #18202A;
+      --card-hover: #1E2835;
+      --border: #2A3644;
+      --text: #F4F7FA;
+      --muted: #9FB0C3;
+      --cyan: #00A8E8;
+      --amber: #F59E0B;
+      --green: #10B981;
+      --call-green: #22C55E;
+      --red: #EF4444;
+      --yellow: #EAB308;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Képernyők */
+    .screen {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+    .screen.active { display: flex; }
+
+    /* Fejléc */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #131922;
+      border-bottom: 1px solid var(--border);
+      min-height: 56px;
+      gap: 8px;
+      z-index: 20;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+    .topbar-title { font-size: 17px; font-weight: 700; }
+    .badge {
+      padding: 4px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .badge-draft { background: rgba(0, 168, 232, 0.2); color: var(--cyan); border: 1px solid var(--cyan); }
+    .badge-active { background: rgba(16, 185, 129, 0.2); color: var(--green); border: 1px solid var(--green); }
+    .badge-lock { background: rgba(239, 68, 68, 0.2); color: var(--red); border: 1px solid var(--red); }
+    .badge-detour { background: rgba(245, 158, 11, 0.2); color: var(--amber); border: 1px solid var(--amber); }
+
+    /* Görgethető tartalom */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Gombok & Inputok */
+    button {
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 14px;
+      color: var(--text);
+      background: var(--card);
+      transition: transform 0.06s ease, opacity 0.15s ease;
+    }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; pointer-events: none; }
+
+    .btn-cyan { background: var(--cyan); color: #051018; }
+    .btn-amber { background: var(--amber); color: #111; }
+    .btn-green { background: var(--green); color: #051610; }
+    .btn-red { background: var(--red); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); }
+    .btn-icon { padding: 8px 10px; min-width: 40px; min-height: 40px; }
+
+    input, select, textarea {
+      width: 100%;
+      background: #111720;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--cyan); }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+
+    /* Kártyák */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .menu-btn {
+      width: 100%;
+      justify-content: flex-start;
+      padding: 16px;
+      font-size: 16px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+
+    /* Stop kártya */
+    .stop-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .stop-card.done { opacity: 0.55; border-color: var(--green); }
+    .stop-top { display: flex; align-items: flex-start; gap: 10px; }
+    .stop-num {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--cyan);
+      color: #051018;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+    .stop-card.done .stop-num { background: var(--green); }
+    .stop-info { flex: 1; min-width: 0; }
+    .stop-addr { font-weight: 700; font-size: 15px; line-height: 1.3; word-break: break-word; }
+    .stop-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .stop-actions {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .act-btn { padding: 8px 4px; font-size: 13px; border-radius: 8px; background: #121821; border: 1px solid var(--border); }
+
+    /* Alsó navigáció */
+    .bottom-nav {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: #131922;
+      border-top: 1px solid var(--border);
+      padding: 6px 0;
+    }
+    .nav-tab {
+      background: transparent;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 12px;
+      padding: 6px;
+      color: var(--muted);
+      border-radius: 0;
+    }
+    .nav-tab.active { color: var(--cyan); }
+
+    /* Alsó vezérlősáv (Címlista / Térkép) */
+    .action-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      background: #131922;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Térkép */
+    #mapContainer { flex: 1; width: 100%; min-height: 300px; z-index: 1; }
+    .map-overlay-top {
+      position: absolute;
+      top: 66px;
+      right: 12px;
+      z-index: 500;
+      background: var(--amber);
+      color: #111;
+      font-weight: 800;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    /* Modális ablak */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 76px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #222D3B;
+      border: 1px solid var(--cyan);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 2000;
+      display: none;
+      max-width: 90%;
+      text-align: center;
+    }
+
+    .row { display: flex; gap: 8px; align-items: center; }
+    .flex-1 { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. KÉPERNYŐ: BEJELENTKEZÉS -->
+  <section id="screen-login" class="screen active">
+    <div class="content" style="justify-content: center; align-items: center; padding: 24px;">
+      <div class="card" style="width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 14px; padding: 22px;">
+        <div style="text-align: center;">
+          <svg width="74" height="74" viewBox="0 0 100 100">
+            <defs>
+              <linearGradient id="o3grad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#1E3A5F" />
+                <stop offset="100%" stop-color="#00A8E8" />
+              </linearGradient>
+            </defs>
+            <path d="M22 14 H78 L86 24 V54 C86 74 50 90 50 90 C50 90 14 74 14 54 V24 Z" fill="#111720" stroke="url(#o3grad)" stroke-width="5"/>
+            <path d="M35 58 A14 14 0 1 1 54 44 H47 M54 44 A12 12 0 1 1 42 66 L68 32" fill="none" stroke="url(#o3grad)" stroke-width="6" stroke-linecap="round"/>
+            <polygon points="73,27 62,30 69,38" fill="#00A8E8"/>
+          </svg>
+          <div style="font-size: 26px; font-weight: 800; margin-top: 6px;">Optimus3</div>
+          <div style="font-size: 13px; color: var(--cyan); font-weight: 700;">Verzió: 17v12</div>
+        </div>
+        <div>
+          <label>Sofőr azonosító / Név</label>
+          <input type="text" id="loginUser" placeholder="pl. G-Futár" value="G" />
+        </div>
+        <div>
+          <label>PIN / Jelszó</label>
+          <input type="password" id="loginPin" placeholder="••••" value="1234" />
+        </div>
+        <button class="btn-cyan" style="width: 100%; padding: 14px; font-size: 16px;" onclick="handleLogin()">BELÉPÉS</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. KÉPERNYŐ: FŐMENÜ (ITTHON) -->
+  <section id="screen-home" class="screen">
+    <div class="topbar">
+      <div class="topbar-left">
+        <svg width="32" height="32" viewBox="0 0 100 100">
+          <path d="M22 14 H78 L86 24 V54 C86 74 50 90 50 90 C50 90 14 74 14 54 V24 Z" fill="#111720" stroke="#00A8E8" stroke-width="6"/>
+          <path d="M35 58 A14 14 0 1 1 54 44 M54 44 A12 12 0 1 1 42 66 L68 32" fill="none" stroke="#00A8E8" stroke-width="7" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="topbar-title">Optimus3 <span style="font-size:12px; color:var(--cyan);">17v12</span></div>
+          <div style="font-size:11px; color:var(--muted);" id="homeUserLabel">Bejelentkezve</div>
+        </div>
+      </div>
+      <div class="row">
+        <span id="homeTripBadge" class="badge badge-draft">TERVEZÉS</span>
+        <button class="btn-outline btn-icon" onclick="logout()" title="Kijelentkezés">⏻</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <button class="menu-btn" onclick="showScreen('route-config')">
+        <span style="color:var(--cyan); font-size:20px;">🧭</span>
+        <div>
+          <div>Új napi útvonal létrehozása</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:400;">Kezdőpont, végpont, napi irány/gerinc beállítása</div>
+        </div>
+      </button>
+
+      <button class="menu-btn" onclick="showScreen('stop-list')">
+        <span style="color:var(--amber); font-size:20px;">📋</span>
+        <div>
+          <div>Aktuális járat – Címlista (<span id="homeStopCount">0</span>)</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:400;">Címfelvétel, optimalizálás, hívás és navigáció</div>
+        </div>
+      </button>
+
+      <button class="menu-btn" onclick="showScreen('map-view')">
+        <span style="color:var(--green); font-size:20px;">🗺️</span>
+        <div>
+          <div>Aktuális járat – Térkép</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:400;">Útvonalív, sorszámozott megállók és távolság</div>
+        </div>
+      </button>
+
+      <button class="menu-btn" onclick="showScreen('address-book')">
+        <span style="color:var(--yellow); font-size:20px;">📒</span>
+        <div>
+          <div>Címjegyzék (Mentett adatbázis: <span id="homeDbCount">0</span>)</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:400;">Törzscímek és telefonos névjegyzék-kapcsolatok</div>
+        </div>
+      </button>
+
+      <button class="menu-btn" onclick="saveDatabaseToFolder()">
+        <span style="color:var(--call-green); font-size:20px;">📁</span>
+        <div>
+          <div>Adatbázis mentése mappába / fájlba</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:400;">Letárolt JSON biztonsági mentés készítése</div>
+        </div>
+      </button>
+
+      <button class="menu-btn" onclick="showScreen('settings')">
+        <span style="color:var(--muted); font-size:20px;">⚙️</span>
+        <div>
+          <div>Beállítások (TomTom API & Navigáció)</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:400;">API kulcs, Google Maps / Waze / Sygic választó</div>
+        </div>
+      </button>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-tab active" onclick="showScreen('home')">🏠<span>Itthon</span></button>
+      <button class="nav-tab" onclick="showScreen('stop-list')">🛣️<span>Útvonalak</span></button>
+      <button class="nav-tab" onclick="showScreen('address-book')">📇<span>Címjegyzék</span></button>
+    </div>
+  </section>
+
+  <!-- 3. KÉPERNYŐ: NAPI ÚTVONAL BEÁLLÍTÁSA -->
+  <section id="screen-route-config" class="screen">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="btn-outline btn-icon" onclick="showScreen('home')">←</button>
+        <div class="topbar-title">Napi útvonal meghatározása</div>
+      </div>
+      <span id="cfgTripBadge" class="badge badge-draft">TERVEZÉS</span>
+    </div>
+
+    <div class="content">
+      <div id="cfgLockedWarn" class="card" style="display:none; border-color:var(--red); color:var(--red); font-weight:700;">
+        ⚠️ A járat ki van indítva! A napi keret módosításához előbb dobd vissza a járatot.
+      </div>
+
+      <div class="card">
+        <label>Útvonal neve</label>
+        <input type="text" id="cfgName" placeholder="pl. 2026.11.25 – Zala kör" />
+      </div>
+
+      <div class="card">
+        <label>Dátum</label>
+        <input type="date" id="cfgDate" />
+      </div>
+
+      <div class="card">
+        <label>Útvonal kezdési helye (Start)</label>
+        <div class="row">
+          <input type="text" id="cfgStartAddr" placeholder="pl. Zalaegerszeg, Telephely" />
+          <button class="btn-outline btn-icon" onclick="useGpsForStart()" title="Saját GPS">📍</button>
+        </div>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;" id="cfgStartCoords">Koordináta: automatikus</div>
+      </div>
+
+      <div class="card">
+        <label>Útvonal vége (End – üresen hagyva zárt kör)</label>
+        <input type="text" id="cfgEndAddr" placeholder="pl. Türje vagy hagyd üresen zárt körhöz" />
+      </div>
+
+      <div class="card">
+        <label>Napi irány / gerinc (vesszővel elválasztva, opcionális)</label>
+        <input type="text" id="cfgCorridor" placeholder="pl. Pacsa, Nagykanizsa, Zalakaros" />
+      </div>
+
+      <button id="btnSaveRouteCfg" class="btn-cyan" style="width:100%; padding:15px; font-size:16px;" onclick="saveRouteConfig()">
+        ÚTVONAL MENTÉSE ÉS MEGNYITÁSA
+      </button>
+    </div>
+  </section>
+
+  <!-- 4. KÉPERNYŐ: CÍMLISTA -->
+  <section id="screen-stop-list" class="screen">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="btn-outline btn-icon" onclick="showScreen('home')">←</button>
+        <div>
+          <div class="topbar-title" id="listHeaderTitle">0 / Napi járat</div>
+          <div style="font-size:11px; color:var(--muted);" id="listHeaderSub">Nincs beállított keret</div>
+        </div>
+      </div>
+      <span id="listTripBadge" class="badge badge-draft">TERVEZÉS</span>
+    </div>
+
+    <!-- Gyors címfelvétel (csak !active esetén) -->
+    <div id="quickAddBox" style="padding: 10px 12px; background: #141B24; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;">
+      <div class="row">
+        <input type="text" id="quickAddrInput" placeholder="Új cím (pl. Zalaegerszeg, Iskola utca 3)" onkeydown="if(event.key==='Enter') quickAddStop()" />
+        <button class="btn-cyan btn-icon" onclick="quickAddStop()" title="Hozzáadás">+</button>
+        <button class="btn-outline btn-icon" onclick="document.getElementById('shareImageInput').click()" title="Kép a galériából">🖼️</button>
+        <button class="btn-outline btn-icon" onclick="document.getElementById('cameraImageInput').click()" title="Fotó készítése">📷</button>
+        <button class="btn-outline btn-icon" onclick="openDbPickerModal()" title="Címjegyzékből">📒</button>
+      </div>
+      <input type="file" id="shareImageInput" accept="image/*" style="display:none;" onchange="handleIncomingImage(event)" />
+      <input type="file" id="cameraImageInput" accept="image/*" capture="environment" style="display:none;" onchange="handleIncomingImage(event)" />
+    </div>
+
+    <!-- Kétesélyes döntési sáv (AI nélkül, ha pendingChoices van) -->
+    <div id="pendingChoicesBox" style="display:none; padding: 10px 12px; background: rgba(245,158,11,0.12); border-bottom: 1px solid var(--amber);"></div>
+
+    <!-- Lista -->
+    <div class="content" id="stopsContainer"></div>
+
+    <!-- Alsó vezérlősáv -->
+    <div class="action-bar">
+      <button id="btnOptimize" class="btn-amber flex-1" onclick="handleOptimizeClick()">OPTIMALIZÁL</button>
+      <button class="btn-outline btn-icon" onclick="showScreen('stop-list')" style="border-color:var(--cyan);">☰</button>
+      <button class="btn-outline btn-icon" onclick="showScreen('map-view')">🗺️</button>
+      <button id="btnStartTrip" class="btn-green flex-1" onclick="handleStartTrip()">RAJT</button>
+      <button id="btnRevertTrip" class="btn-red flex-1" style="display:none;" onclick="handleRevertTrip()">VISSZADOBÁS</button>
+    </div>
+  </section>
+
+  <!-- 5. KÉPERNYŐ: TÉRKÉP -->
+  <section id="screen-map-view" class="screen">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="btn-outline btn-icon" onclick="showScreen('stop-list')">←</button>
+        <div class="topbar-title">Térkép nézet</div>
+      </div>
+      <span id="mapTripBadge" class="badge badge-draft">TERVEZÉS</span>
+    </div>
+
+    <div class="map-overlay-top" id="mapDistanceBadge">0.0 km</div>
+    <div id="mapContainer"></div>
+
+    <div class="action-bar">
+      <button id="btnMapOptimize" class="btn-amber flex-1" onclick="handleOptimizeClick()">OPTIMALIZÁL</button>
+      <button class="btn-outline btn-icon" onclick="showScreen('stop-list')">☰</button>
+      <button class="btn-outline btn-icon" onclick="showScreen('map-view')" style="border-color:var(--cyan);">🗺️</button>
+      <button id="btnMapStart" class="btn-green flex-1" onclick="handleStartTrip()">RAJT</button>
+      <button id="btnMapRevert" class="btn-red flex-1" style="display:none;" onclick="handleRevertTrip()">VISSZADOBÁS</button>
+    </div>
+  </section>
+
+  <!-- 6. KÉPERNYŐ: CÍMJEGYZÉK (MENTETT ADATBÁZIS) -->
+  <section id="screen-address-book" class="screen">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="btn-outline btn-icon" onclick="showScreen('home')">←</button>
+        <div class="topbar-title">Címjegyzék (<span id="dbCountTitle">0</span>)</div>
+      </div>
+      <button class="btn-cyan btn-icon" onclick="openNewDbModal()">+</button>
+    </div>
+
+    <div style="padding: 10px 12px; background: #141B24; border-bottom: 1px solid var(--border);">
+      <input type="text" id="dbSearchInput" placeholder="Keresés név, cím vagy telefonszám alapján..." oninput="renderAddressBook()" />
+    </div>
+
+    <div class="content" id="dbContainer"></div>
+
+    <div class="bottom-nav">
+      <button class="nav-tab" onclick="showScreen('home')">🏠<span>Itthon</span></button>
+      <button class="nav-tab" onclick="showScreen('stop-list')">🛣️<span>Útvonalak</span></button>
+      <button class="nav-tab active" onclick="showScreen('address-book')">📇<span>Címjegyzék</span></button>
+    </div>
+  </section>
+
+  <!-- 7. KÉPERNYŐ: BEÁLLÍTÁSOK (TOMTOM, NAVI, MAPPA) -->
+  <section id="screen-settings" class="screen">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="btn-outline btn-icon" onclick="showScreen('home')">←</button>
+        <div class="topbar-title">Beállítások</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <label>TomTom API kulcs (címkereséshez és pontos koordinátához)</label>
+        <input type="password" id="setTomTomKey" placeholder="TomTom API Key..." />
+        <div class="row" style="margin-top:8px;">
+          <button class="btn-cyan flex-1" onclick="saveSettings()">Kulcs mentése</button>
+          <button class="btn-outline" onclick="testTomTomKey()">Teszt</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <label>Alapértelmezett külső navigáció indítása</label>
+        <select id="setDefaultNav" onchange="saveSettings()">
+          <option value="google">Google Maps</option>
+          <option value="waze">Waze</option>
+          <option value="sygic">Sygic</option>
+          <option value="system">Rendszerválasztó (geo:)</option>
+        </select>
+      </div>
+
+      <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+        <label>Mentett cím-adatbázis tárolása (Mappa / Fájl)</label>
+        <button class="btn-cyan" onclick="saveDatabaseToFolder()">📁 Adatbázis mentése mappába / JSON fájlba</button>
+        <button class="btn-outline" onclick="document.getElementById('importDbInput').click()">📂 Adatbázis visszatöltése fájlból</button>
+        <input type="file" id="importDbInput" accept=".json,application/json" style="display:none;" onchange="importDatabaseFile(event)" />
+      </div>
+
+      <div class="card" style="text-align:center; color:var(--muted); font-size:13px;">
+        <strong>Optimus3</strong> – Verzió: <strong>17v12</strong><br/>
+        Motor: v18-unified (4 lépéses életciklus + Hub & Spur + Csepp-ív)
+      </div>
+    </div>
+  </section>
+
+  <!-- MODÁLIS ABLAKOK -->
+  <div id="modalBackdrop" class="modal-backdrop" onclick="if(event.target===this) closeModal()">
+    <div class="modal-box" id="modalContent"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="lib/leaflet/leaflet.js"></script>
+  <script>
+    /* ==========================================================================
+       ALAP ÁLLAPOT ÉS PERZISZTENCIA (LOCALSTORAGE + MAPPA EXPORT)
+       ========================================================================== */
+
+    /* ==========================================================================
+       CAPACITOR HÍD (APK): natív külső megnyitás, fájlmentés, megosztás
+       ========================================================================== */
+    const CapPlugins = (window.Capacitor && window.Capacitor.Plugins) || {};
+    const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+    async function openExternalUrl(url) {
+      if (IS_NATIVE && CapPlugins.AppLauncher) {
+        try { await CapPlugins.AppLauncher.openUrl({ url }); return; } catch (e) {}
+        // ha az adott app (pl. Sygic/Waze) nincs telepítve, rendszer-térkép tartalék
+        try {
+          const m = url.match(/(-?\d+\.\d+)[,|](-?\d+\.\d+)/);
+          if (m) { await CapPlugins.AppLauncher.openUrl({ url: 'geo:' + m[1] + ',' + m[2] }); return; }
+        } catch (e2) {}
+        showToast('Nem sikerült megnyitni a navigációs appot');
+        return;
+      }
+      window.open(url, '_blank');
+    }
+
+    function nativeTel(phone) {
+      const clean = String(phone || '').replace(/[^+\d]/g, '');
+      if (IS_NATIVE && CapPlugins.AppLauncher) {
+        CapPlugins.AppLauncher.openUrl({ url: 'tel:' + clean }).catch(() => { window.location.href = 'tel:' + clean; });
+      } else {
+        window.location.href = 'tel:' + clean;
+      }
+    }
+
+    async function nativeSaveJson(fileName, text) {
+      const FS = CapPlugins.Filesystem;
+      if (!IS_NATIVE || !FS) return false;
+      try {
+        const path = 'Optimus3_DB/' + fileName;
+        await FS.writeFile({ path, data: text, directory: 'DOCUMENTS', encoding: 'utf8', recursive: true });
+        showToast('Mentve: Dokumentumok/Optimus3_DB/' + fileName);
+        if (CapPlugins.Share) {
+          try {
+            const uri = await FS.getUri({ path, directory: 'DOCUMENTS' });
+            await CapPlugins.Share.share({ title: 'Optimus3 adatbázis', url: uri.uri });
+          } catch (e) {}
+        }
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    const STORAGE_KEY = 'optimus3_17v12_state';
+
+    let appState = loadAppState();
+    let leafletMap = null;
+    let mapLayerGroup = null;
+
+    function loadAppState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return {
+        user: null,
+        settings: {
+          tomtomApiKey: '',
+          defaultNav: 'google'
+        },
+        addressDatabase: [
+          {
+            id: 'db_1',
+            city: 'Zalaegerszeg',
+            street: 'Iskola utca',
+            houseNumber: 3,
+            address: 'Zalaegerszeg, Iskola utca 3',
+            lat: 46.8475,
+            lng: 16.8091,
+            contactName: 'Kovács János',
+            phone: '+36301112233',
+            note: 'Kapu nyitva'
+          },
+          {
+            id: 'db_2',
+            city: 'Kehidakustány',
+            street: 'Kúria utca',
+            houseNumber: 6,
+            address: 'Kehidakustány, Kúria utca 6',
+            lat: 46.8461,
+            lng: 17.0985,
+            contactName: 'Nagy Béla',
+            phone: '+36204445566',
+            note: ''
+          },
+          {
+            id: 'db_3',
+            city: 'Türje',
+            street: 'Kossuth utca',
+            houseNumber: 136,
+            address: 'Türje, Kossuth utca 136',
+            lat: 46.9839,
+            lng: 17.1032,
+            contactName: 'Szabó Éva',
+            phone: '+36707778899',
+            note: ''
+          }
+        ],
+        trip: createTripState({
+          active: false,
+          name: new Date().toLocaleDateString('hu-HU'),
+          date: new Date().toISOString().slice(0, 10),
+          start: { address: 'Zalaegerszeg, Telephely', city: 'Zalaegerszeg', lat: 46.8417, lng: 16.8416 },
+          end: { address: 'Türje', city: 'Türje', lat: 46.9839, lng: 17.1032 },
+          corridorHints: [],
+          stops: []
+        })
+      };
+    }
+
+    function persistState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      refreshAllBadges();
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.display = 'block';
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => { el.style.display = 'none'; }, 2800);
+    }
+
+    /* ==========================================================================
+       KÉPERNYŐVÁLTÁS ÉS HITELESÍTÉS
+       ========================================================================== */
+    function showScreen(name) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const target = document.getElementById('screen-' + name);
+      if (target) target.classList.add('active');
+
+      refreshAllBadges();
+
+      if (name === 'home') {
+        document.getElementById('homeUserLabel').textContent = 'Sofőr: ' + (appState.user || 'G');
+        document.getElementById('homeStopCount').textContent = appState.trip.stops.length;
+        document.getElementById('homeDbCount').textContent = appState.addressDatabase.length;
+      } else if (name === 'route-config') {
+        loadRouteConfigUI();
+      } else if (name === 'stop-list') {
+        renderStopList();
+      } else if (name === 'map-view') {
+        renderMapScreen();
+      } else if (name === 'address-book') {
+        renderAddressBook();
+      } else if (name === 'settings') {
+        document.getElementById('setTomTomKey').value = appState.settings.tomtomApiKey || '';
+        document.getElementById('setDefaultNav').value = appState.settings.defaultNav || 'google';
+      }
+    }
+
+    function handleLogin() {
+      const u = document.getElementById('loginUser').value.trim() || 'G';
+      appState.user = u;
+      persistState();
+      showScreen('home');
+      showToast('Üdv, ' + u + '! (Optimus3 17v12)');
+    }
+
+    function logout() {
+      appState.user = null;
+      persistState();
+      showScreen('login');
+    }
+
+    function refreshAllBadges() {
+      const isAct = appState.trip.active;
+      const badges = ['homeTripBadge', 'cfgTripBadge', 'listTripBadge', 'mapTripBadge'];
+      badges.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = isAct ? 'AKTÍV JÁRAT' : 'TERVEZÉS';
+        el.className = 'badge ' + (isAct ? 'badge-active' : 'badge-draft');
+      });
+
+      // Lista & Térkép alsó gombok állapota (4 lépéses szabály)
+      const qBox = document.getElementById('quickAddBox');
+      if (qBox) qBox.style.display = isAct ? 'none' : 'flex';
+
+      const optBtns = ['btnOptimize', 'btnMapOptimize'];
+      optBtns.forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.style.display = isAct ? 'none' : 'inline-flex';
+      });
+
+      const startBtns = ['btnStartTrip', 'btnMapStart'];
+      startBtns.forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.style.display = isAct ? 'none' : 'inline-flex';
+      });
+
+      const revBtns = ['btnRevertTrip', 'btnMapRevert'];
+      revBtns.forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.style.display = isAct ? 'inline-flex' : 'none';
+      });
+    }
+
+    /* ==========================================================================
+       NAPI ÚTVONAL BEÁLLÍTÁS
+       ========================================================================== */
+    function loadRouteConfigUI() {
+      const t = appState.trip;
+      document.getElementById('cfgName').value = t.name || '';
+      document.getElementById('cfgDate').value = t.date || new Date().toISOString().slice(0, 10);
+      document.getElementById('cfgStartAddr').value = t.start ? t.start.address : '';
+      document.getElementById('cfgStartAddr').dataset.lat = t.start && t.start.lat ? t.start.lat : '';
+      document.getElementById('cfgStartAddr').dataset.lng = t.start && t.start.lng ? t.start.lng : '';
+      document.getElementById('cfgEndAddr').value = t.end ? t.end.address : '';
+      document.getElementById('cfgCorridor').value = (t.corridorHints || []).map(h => h.city || h.address).join(', ');
+
+      const locked = t.active;
+      document.getElementById('cfgLockedWarn').style.display = locked ? 'block' : 'none';
+      ['cfgName', 'cfgDate', 'cfgStartAddr', 'cfgEndAddr', 'cfgCorridor', 'btnSaveRouteCfg'].forEach(id => {
+        document.getElementById(id).disabled = locked;
+      });
+    }
+
+    function useGpsForStart() {
+      if (!navigator.geolocation) return showToast('GPS nem elérhető');
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = Number(pos.coords.latitude.toFixed(5));
+        const lng = Number(pos.coords.longitude.toFixed(5));
+        document.getElementById('cfgStartAddr').value = `Saját GPS (${lat}, ${lng})`;
+        document.getElementById('cfgStartAddr').dataset.lat = lat;
+        document.getElementById('cfgStartAddr').dataset.lng = lng;
+        document.getElementById('cfgStartCoords').textContent = `Koordináta: ${lat}, ${lng}`;
+        showToast('GPS pozíció rögzítve');
+      }, () => showToast('Nem sikerült a GPS lekérés'));
+    }
+
+    async function saveRouteConfig() {
+      if (appState.trip.active) return showToast('Előbb dobd vissza a járatot!');
+      const t = appState.trip;
+      const startInput = document.getElementById('cfgStartAddr');
+      const startTxt = startInput.value.trim();
+      if (!startTxt) return showToast('Add meg a kezdőpontot!');
+
+      // Kezdőpont: GPS / változatlan (nem keresi újra) / új cím
+      let startGeo;
+      if (startTxt.startsWith('Saját GPS') && startInput.dataset.lat && startInput.dataset.lng) {
+        startGeo = parseAddressMeta({ address: startTxt, city: 'Start', lat: Number(startInput.dataset.lat), lng: Number(startInput.dataset.lng) });
+      } else if (t.start && t.start.address === startTxt && t.start.lat && t.start.lng) {
+        startGeo = t.start;
+      } else {
+        startGeo = await resolveAddressGeo(startTxt, { lat: 46.8417, lng: 16.8416 });
+      }
+
+      // Végpont
+      const endTxt = document.getElementById('cfgEndAddr').value.trim();
+      let endGeo;
+      if (!endTxt) endGeo = { ...startGeo };
+      else if (t.end && t.end.address === endTxt && t.end.lat && t.end.lng) endGeo = t.end;
+      else endGeo = await resolveAddressGeo(endTxt, { lat: 46.9839, lng: 17.1032 });
+
+      // Napi irány / gerinc: települések sorrendben, valódi koordinátával
+      const corrRaw = document.getElementById('cfgCorridor').value.trim();
+      const hints = [], missing = [];
+      for (const part of corrRaw.split(',').map(x => x.trim()).filter(Boolean)) {
+        const same = (t.corridorHints || []).find(h =>
+          h.lat && h.lng && (String(h.address).toLowerCase() === part.toLowerCase() || String(h.city).toLowerCase() === part.toLowerCase()));
+        if (same) { hints.push(same); continue; }
+        const g = await resolveAddressGeo(part, startGeo, { strict: true });
+        if (g) hints.push(g); else missing.push(part);
+      }
+
+      t.name = document.getElementById('cfgName').value.trim() || new Date().toLocaleDateString('hu-HU');
+      t.date = document.getElementById('cfgDate').value;
+      t.start = startGeo;
+      t.end = endGeo;
+      t.corridorHints = hints;
+      persistState();
+
+      if (missing.length > 0) {
+        loadRouteConfigUI();
+        return showToast('Nem találtam: ' + missing.join(', ') + ' – kell internet (Beállítások: TomTom kulcs ajánlott)');
+      }
+      showScreen('stop-list');
+      showToast('Napi útvonal keret mentve' + (hints.length ? ` (gerinc: ${hints.length} település)` : ''));
+    }
+
+    /* ==========================================================================
+       4 LÉPÉSES JÁRAT MŰVELETEK (VISSZADOBÁS -> BESZÚRÁS -> OPTIMALIZÁL -> RAJT)
+       ========================================================================== */
+    async function quickAddStop() {
+      if (appState.trip.active) {
+        return showToast('Járat aktív! Előbb nyomj VISSZADOBÁS-t.');
+      }
+      const inp = document.getElementById('quickAddrInput');
+      const text = inp.value.trim();
+      if (!text) return;
+
+      const geo = await resolveAddressGeo(text, appState.trip.start || { lat: 46.84, lng: 16.84 });
+      const newStop = {
+        id: 'stop_' + Date.now(),
+        ...geo,
+        phone: '',
+        contactName: '',
+        note: '',
+        done: false,
+        lock: false,
+        detour: false
+      };
+
+      const res = insertStopInDraft(appState.trip, newStop);
+      if (!res.ok) return showToast(res.message);
+
+      appState.trip = res.state;
+      inp.value = '';
+      persistState();
+      renderStopList();
+      showToast('Cím beillesztve');
+    }
+
+    function handleOptimizeClick(choiceId = null, choiceVal = null) {
+      if (appState.trip.active) {
+        return showToast('Aktív járat nem optimalizálható visszadobás nélkül!');
+      }
+      const resolved = {};
+      if (choiceId && choiceVal) resolved[choiceId] = choiceVal;
+
+      const res = runTripOptimization(appState.trip, resolved);
+      if (!res.ok) return showToast(res.message);
+
+      appState.trip = res.state;
+      persistState();
+      renderStopList();
+      if (document.getElementById('screen-map-view').classList.contains('active')) {
+        renderMapScreen();
+      }
+      showToast('Sorrend optimalizálva (v18-unified)');
+    }
+
+    function handleStartTrip() {
+      if (appState.trip.stops.length === 0) {
+        return showToast('Nincs megálló a listában!');
+      }
+      appState.trip = startTrip(appState.trip);
+      persistState();
+      renderStopList();
+      if (document.getElementById('screen-map-view').classList.contains('active')) {
+        renderMapScreen();
+      }
+      showToast('RAJT! A járat kiindítva és zárolva.');
+    }
+
+    function handleRevertTrip() {
+      appState.trip = revertTripToDraft(appState.trip);
+      persistState();
+      renderStopList();
+      if (document.getElementById('screen-map-view').classList.contains('active')) {
+        renderMapScreen();
+      }
+      showToast('Járat visszadobva szerkesztőbe. Most beszúrhatsz új címet.');
+    }
+
+    /* ==========================================================================
+       CÍMLISTA RENDERELÉS, HÍVÁS, NÉVJEGYZÉK ÉS KÜLSŐ NAVIGÁCIÓ
+       ========================================================================== */
+    function renderStopList() {
+      const t = appState.trip;
+      document.getElementById('listHeaderTitle').textContent = `${t.stops.length} megálló / ${t.name || ''}`;
+      document.getElementById('listHeaderSub').textContent =
+        `${t.start ? t.start.city || t.start.address : 'Start'} → ${t.end ? t.end.city || t.end.address : 'Kör'}`;
+
+      // Kétesélyes döntési sáv
+      const choicesBox = document.getElementById('pendingChoicesBox');
+      if (!t.active && t.pendingChoices && t.pendingChoices.length > 0) {
+        const ch = t.pendingChoices[0];
+        choicesBox.style.display = 'block';
+        choicesBox.innerHTML = `
+          <div style="font-size:13px; font-weight:700; color:var(--amber); margin-bottom:6px;">⚖️ ${ch.question}</div>
+          <div class="row">
+            <button class="btn-cyan flex-1" style="padding:8px; font-size:13px;" onclick="handleOptimizeClick('${ch.id}', '${ch.optionA.key}')">${ch.optionA.label}</button>
+            <button class="btn-outline flex-1" style="padding:8px; font-size:13px;" onclick="handleOptimizeClick('${ch.id}', '${ch.optionB.key}')">${ch.optionB.label}</button>
+          </div>
+        `;
+      } else {
+        choicesBox.style.display = 'none';
+      }
+
+      const container = document.getElementById('stopsContainer');
+      if (t.stops.length === 0) {
+        container.innerHTML = `<div class="card" style="text-align:center; color:var(--muted); padding:28px;">Még nincs felvett cím a mai járatban.</div>`;
+        return;
+      }
+
+      container.innerHTML = t.stops.map((s, idx) => {
+        const hasPhone = Boolean(s.phone);
+        return `
+          <div class="stop-card ${s.done ? 'done' : ''}">
+            <div class="stop-top">
+              <div class="stop-num">${idx + 1}</div>
+              <div class="stop-info">
+                <div class="stop-addr">${escapeHtml(s.address)}</div>
+                <div class="stop-sub">
+                  ${s.contactName ? `👤 ${escapeHtml(s.contactName)} ` : ''}
+                  ${hasPhone ? `📞 ${escapeHtml(s.phone)}` : 'Nincs telefonszám'}
+                  ${s.note ? ` • 📝 ${escapeHtml(s.note)}` : ''}
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+                ${s.lock ? '<span class="badge badge-lock">LOCK</span>' : ''}
+                ${s.detour ? '<span class="badge badge-detour">KITÉRŐ</span>' : ''}
+              </div>
+              ${!t.active ? `
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <button class="act-btn" style="min-width:36px; padding:5px;" ${idx === 0 ? 'disabled' : ''} onclick="moveStop(${idx}, -1)" title="Feljebb">▲</button>
+                <button class="act-btn" style="min-width:36px; padding:5px;" ${idx === t.stops.length - 1 ? 'disabled' : ''} onclick="moveStop(${idx}, 1)" title="Lejjebb">▼</button>
+              </div>` : ''}
+            </div>
+            <div class="stop-actions">
+              <button class="act-btn" style="color:${hasPhone ? 'var(--call-green)' : 'var(--muted)'};" onclick="handlePhoneAction(${idx})" title="Hívás / Névjegyzék">
+                ${hasPhone ? '📞 Hív' : '📇 +Tel'}
+              </button>
+              <button class="act-btn" style="color:var(--red);" ${t.active ? 'disabled' : ''} onclick="removeStop(${idx})" title="Törlés">✕</button>
+              <button class="act-btn" style="color:var(--green);" onclick="toggleStopDone(${idx})" title="Kész">${s.done ? '↺' : '✓'}</button>
+              <button class="act-btn" style="color:var(--yellow);" onclick="launchExternalNavigation(${idx})" title="Navigáció indítása">➤ Navi</button>
+              <button class="act-btn" onclick="openStopMenuModal(${idx})" title="További opciók">⋮</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleStopDone(idx) {
+      appState.trip.stops[idx].done = !appState.trip.stops[idx].done;
+      persistState();
+      renderStopList();
+    }
+
+    function removeStop(idx) {
+      if (appState.trip.active) return showToast('Aktív járatból nem törölhetsz!');
+      appState.trip.stops.splice(idx, 1);
+      persistState();
+      renderStopList();
+    }
+
+    function handlePhoneAction(idx) {
+      const stop = appState.trip.stops[idx];
+      if (stop.phone) {
+        nativeTel(stop.phone);
+      } else {
+        pickContactForStop(idx);
+      }
+    }
+
+    async function pickContactForStop(idx) {
+      const stop = appState.trip.stops[idx];
+
+      // APK: natív névjegyválasztó
+      if (IS_NATIVE && CapPlugins.Contacts && CapPlugins.Contacts.pickContact) {
+        try {
+          const r = await CapPlugins.Contacts.pickContact({ projection: { name: true, phones: true } });
+          const c = (r && r.contact) || r || {};
+          const nm = (c.name && (c.name.display || [c.name.given, c.name.family].filter(Boolean).join(' '))) || c.displayName || '';
+          const p0 = (c.phones && c.phones[0]) || (c.phoneNumbers && c.phoneNumbers[0]) || null;
+          const ph = p0 ? (p0.number || p0.value || '') : '';
+          if (ph) {
+            stop.contactName = nm || stop.contactName || '';
+            stop.phone = ph;
+            syncStopPhoneToDb(stop);
+            persistState();
+            renderStopList();
+            showToast('Telefonszám csatolva: ' + (nm || ph));
+            return;
+          }
+          showToast('A kiválasztott névjegynek nincs telefonszáma');
+          return;
+        } catch (e) {
+          showToast('Névjegy nem érhető el – add meg kézzel');
+        }
+      } else if ('contacts' in navigator && 'select' in navigator.contacts) {
+        try {
+          const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+          if (contacts && contacts.length > 0) {
+            const c = contacts[0];
+            stop.contactName = (c.name && c.name[0]) || stop.contactName || '';
+            stop.phone = (c.tel && c.tel[0]) || '';
+            syncStopPhoneToDb(stop);
+            persistState();
+            renderStopList();
+            showToast('Telefonszám csatolva a névjegyzékből');
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // Tartalék kézi számbevitel / névjegyzék ablak
+      openModal(`
+        <div style="font-size:17px; font-weight:700;">Telefonszám hozzárendelése</div>
+        <div style="font-size:13px; color:var(--muted);">${escapeHtml(stop.address)}</div>
+        <div>
+          <label>Ügyfél neve</label>
+          <input type="text" id="mPhoneName" value="${escapeHtml(stop.contactName || '')}" placeholder="pl. Kovács János" />
+        </div>
+        <div>
+          <label>Telefonszám</label>
+          <input type="tel" id="mPhoneNumber" value="${escapeHtml(stop.phone || '')}" placeholder="+36301234567" />
+        </div>
+        <div class="row">
+          <button class="btn-cyan flex-1" onclick="saveStopPhone(${idx})">Mentés</button>
+          <button class="btn-outline" onclick="closeModal()">Mégse</button>
+        </div>
+      `);
+    }
+
+    function saveStopPhone(idx) {
+      const stop = appState.trip.stops[idx];
+      stop.contactName = document.getElementById('mPhoneName').value.trim();
+      stop.phone = document.getElementById('mPhoneNumber').value.trim();
+      syncStopPhoneToDb(stop);
+      persistState();
+      closeModal();
+      renderStopList();
+      showToast('Telefonszám elmentve');
+    }
+
+    function syncStopPhoneToDb(stop) {
+      const existing = appState.addressDatabase.find(d => d.address.toLowerCase() === stop.address.toLowerCase());
+      if (existing) {
+        existing.phone = stop.phone;
+        existing.contactName = stop.contactName;
+      }
+    }
+
+    function launchExternalNavigation(idx, overrideProvider = null) {
+      const stop = appState.trip.stops[idx];
+      if (!stop) return;
+      const provider = overrideProvider || appState.settings.defaultNav || 'google';
+      const hasCoords = Number(stop.lat) !== 0 && Number(stop.lng) !== 0;
+      const q = encodeURIComponent(stop.address);
+
+      let url = '';
+      if (provider === 'google') {
+        url = hasCoords
+          ? `https://www.google.com/maps/dir/?api=1&destination=${stop.lat},${stop.lng}`
+          : `https://www.google.com/maps/dir/?api=1&destination=${q}`;
+      } else if (provider === 'waze') {
+        url = hasCoords
+          ? `https://waze.com/ul?ll=${stop.lat},${stop.lng}&navigate=yes`
+          : `https://waze.com/ul?q=${q}&navigate=yes`;
+      } else if (provider === 'sygic') {
+        url = hasCoords
+          ? `sygic://coordinate|${stop.lng}|${stop.lat}|drive`
+          : `geo:0,0?q=${q}`;
+      } else {
+        url = hasCoords
+          ? `geo:${stop.lat},${stop.lng}?q=${stop.lat},${stop.lng}(${q})`
+          : `geo:0,0?q=${q}`;
+      }
+
+      openExternalUrl(url);
+    }
+
+    function openStopMenuModal(idx) {
+      const s = appState.trip.stops[idx];
+      openModal(`
+        <div style="font-size:16px; font-weight:700;">${escapeHtml(s.address)}</div>
+        <button class="menu-btn" style="padding:12px;" onclick="closeModal(); pickContactForStop(${idx})">📇 Telefonszám a névjegyzékből</button>
+        ${!appState.trip.active ? `<button class="menu-btn" style="padding:12px;" onclick="openMoveModal(${idx})">↕️ Mozgatás másik helyre (sorszám)</button>` : ''}
+        <button class="menu-btn" style="padding:12px;" onclick="toggleStopFlag(${idx}, 'lock')">🔒 Rögzítés (Lock): ${s.lock ? 'BE' : 'KI'}</button>
+        <button class="menu-btn" style="padding:12px;" onclick="toggleStopFlag(${idx}, 'detour')">↪️ Kitérő (Detour): ${s.detour ? 'BE' : 'KI'}</button>
+        <button class="menu-btn" style="padding:12px;" onclick="saveStopToDb(${idx})">💾 Mentés a Címjegyzék adatbázisba</button>
+        <div style="font-size:12px; color:var(--muted); margin-top:4px;">Navigáció indítása másik appal:</div>
+        <div class="row">
+          <button class="btn-outline flex-1" style="padding:8px; font-size:13px;" onclick="closeModal(); launchExternalNavigation(${idx}, 'google')">Google</button>
+          <button class="btn-outline flex-1" style="padding:8px; font-size:13px;" onclick="closeModal(); launchExternalNavigation(${idx}, 'waze')">Waze</button>
+          <button class="btn-outline flex-1" style="padding:8px; font-size:13px;" onclick="closeModal(); launchExternalNavigation(${idx}, 'sygic')">Sygic</button>
+        </div>
+        <button class="btn-outline" onclick="closeModal()">Bezárás</button>
+      `);
+    }
+
+    function moveStopTo(from, to) {
+      const t = appState.trip;
+      if (t.active) return showToast('Aktív járatban nem rendezhető át – előbb VISSZADOBÁS.');
+      if (from === to || to < 0 || to >= t.stops.length) return;
+      const [item] = t.stops.splice(from, 1);
+      item.lock = true; // a kézzel átrakott cím megtartja a helyét az újraoptimalizálásnál
+      t.stops.splice(to, 0, item);
+      persistState();
+      renderStopList();
+      showToast(`Áthelyezve: ${to + 1}. hely (🔒 rögzítve)`);
+    }
+
+    function moveStop(idx, dir) { moveStopTo(idx, idx + dir); }
+
+    function openMoveModal(idx) {
+      const n = appState.trip.stops.length;
+      openModal(`
+        <div style="font-size:16px; font-weight:700;">${escapeHtml(appState.trip.stops[idx].address)}</div>
+        <div>
+          <label>Új hely (1 – ${n})</label>
+          <input type="number" id="moveToInput" min="1" max="${n}" value="${idx + 1}" inputmode="numeric" />
+        </div>
+        <div class="row">
+          <button class="btn-cyan flex-1" onclick="applyMoveModal(${idx})">Áthelyezés</button>
+          <button class="btn-outline" onclick="closeModal()">Mégse</button>
+        </div>
+      `);
+    }
+
+    function applyMoveModal(idx) {
+      const n = appState.trip.stops.length;
+      const v = parseInt(document.getElementById('moveToInput').value, 10);
+      if (!v || v < 1 || v > n) return showToast('Érvénytelen sorszám');
+      closeModal();
+      moveStopTo(idx, v - 1);
+    }
+
+    function toggleStopFlag(idx, flag) {
+      appState.trip.stops[idx][flag] = !appState.trip.stops[idx][flag];
+      persistState();
+      closeModal();
+      renderStopList();
+    }
+
+    function saveStopToDb(idx) {
+      const s = appState.trip.stops[idx];
+      const exists = appState.addressDatabase.some(d => d.address.toLowerCase() === s.address.toLowerCase());
+      if (!exists) {
+        appState.addressDatabase.push({
+          id: 'db_' + Date.now(),
+          city: s.city,
+          street: s.street,
+          houseNumber: s.houseNumber,
+          address: s.address,
+          lat: s.lat,
+          lng: s.lng,
+          contactName: s.contactName || '',
+          phone: s.phone || '',
+          note: s.note || ''
+        });
+        persistState();
+        showToast('Elmentve a Címjegyzékbe');
+      } else {
+        showToast('Ez a cím már szerepel a Címjegyzékben');
+      }
+      closeModal();
+    }
+
+    /* ==========================================================================
+       MÁSIK APPBÓL ÉRKEZŐ KÉP FOGADÁSA
+       ========================================================================== */
+    let ocrLines = [];
+
+    function readAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error('Olvasási hiba'));
+        r.readAsDataURL(file);
+      });
+    }
+
+    function downscaleImage(dataUrl, maxSide) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * k);
+          c.height = Math.round(img.height * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', 0.88));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
+    // Natív ML Kit szövegfelismerés: a képet ideiglenes fájlba írjuk, annak útvonalát kapja a plugin
+    async function runNativeOcr(dataUrl) {
+      const TR = CapPlugins.TextRecognition, FS = CapPlugins.Filesystem;
+      if (!IS_NATIVE || !TR || !FS) throw new Error('A szövegfelismerés csak az APK-ban érhető el');
+      const name = 'ocr_' + Date.now() + '.jpg';
+      await FS.writeFile({ path: name, data: dataUrl.split(',')[1], directory: 'CACHE' });
+      const uri = await FS.getUri({ path: name, directory: 'CACHE' });
+      try {
+        return await TR.processImage({ path: uri.uri, script: 'LATIN' });
+      } finally {
+        try { await FS.deleteFile({ path: name, directory: 'CACHE' }); } catch (e) {}
+      }
+    }
+
+    // Magyar címminta keresése a felismert sorokban: [irányítószám] Település, Utca házszám
+    function guessAddressFromLines(lines) {
+      const SUFFIX = String.raw`(?:utca|u\.|út|útja|tér|köz|sor|körút|krt\.?|dűlő|fasor|sétány|telep|major|park|lakópark|határ)`;
+      const streetRe = new RegExp(
+        String.raw`([\p{L}][\p{L}\.\-]*(?:\s+[\p{L}\.\-]+){0,3}?\s+` + SUFFIX + String.raw`)\s*(\d+[\p{L}\d\/\-]*)`, 'iu');
+      const cityRe = /\b\d{4}\s+([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\-\.]*(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}\-\.]*)?)/u;
+      // már ismert települések (címjegyzék, megállók, gerinc, start/cél) – ezek segítik a felismerést
+      const known = new Map();
+      const addKnown = c => { if (c && String(c).trim()) known.set(String(c).trim().toLowerCase(), String(c).trim()); };
+      appState.addressDatabase.forEach(d => addKnown(d.city));
+      appState.trip.stops.forEach(x => addKnown(x.city));
+      (appState.trip.corridorHints || []).forEach(h => addKnown(h.city));
+      if (appState.trip.start) addKnown(appState.trip.start.city);
+      if (appState.trip.end) addKnown(appState.trip.end.city);
+
+      let city = '', street = '', no = '';
+      for (const line of lines) {
+        const m = line.match(streetRe);
+        if (m && !street) {
+          let st = m[1];
+          const before = line.slice(0, m.index).replace(/[,;:\-–\s]+$/, '').trim();
+          if (!city && before && !/\d/.test(before) && before.split(/\s+/).length <= 2 && /^\p{Lu}/u.test(before)) city = before;
+          for (const [k, orig] of known) {
+            if (st.toLowerCase().startsWith(k + ' ')) { if (!city) city = orig; st = st.slice(k.length).trim(); break; }
+          }
+          street = st.replace(/\bu\.$/i, 'utca').trim();
+          no = m[2];
+        }
+        const c = line.match(cityRe);
+        if (c && !city) city = c[1].trim();
+        if (!city) {
+          for (const [k, orig] of known) {
+            if (new RegExp('(^|[^\\p{L}])' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^\\p{L}])', 'iu').test(line)) { city = orig; break; }
+          }
+        }
+      }
+      if (street && city) return `${city}, ${street} ${no}`;
+      if (street) return `${street} ${no}`;
+      return '';
+    }
+
+    async function handleIncomingImage(event) {
+      if (appState.trip.active) return showToast('Előbb dobd vissza a járatot!');
+      const file = event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+
+      const raw = await readAsDataUrl(file);
+      const img = await downscaleImage(raw, 1800);
+      ocrLines = [];
+      openModal(`
+        <div style="font-size:16px; font-weight:700;">Cím felismerése képből</div>
+        <img src="${img}" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; background:#000;" />
+        <div id="imgOcrStatus" style="font-size:12px; color:var(--amber);">Szöveg felismerése…</div>
+        <div id="imgOcrLines" style="display:flex; flex-wrap:wrap; gap:6px; max-height:120px; overflow-y:auto;"></div>
+        <div>
+          <label>Cím (a felismert sorokra koppintva összeállítható, szerkeszthető)</label>
+          <input type="text" id="imgExtractedAddr" placeholder="pl. Kehidakustány, Barátsziget utca 12" />
+        </div>
+        <div class="row">
+          <button class="btn-cyan flex-1" onclick="confirmImageStop()">Beillesztés a járatba</button>
+          <button class="btn-outline" onclick="document.getElementById('imgExtractedAddr').value=''">Törlés</button>
+          <button class="btn-outline" onclick="closeModal()">Mégse</button>
+        </div>
+      `);
+
+      const status = document.getElementById('imgOcrStatus');
+      try {
+        const res = await runNativeOcr(img);
+        const lines = [];
+        (res.blocks || []).forEach(b => (b.lines || []).forEach(l => { if (l.text && l.text.trim()) lines.push(l.text.trim()); }));
+        if (lines.length === 0 && res.text) res.text.split('\n').forEach(x => { if (x.trim()) lines.push(x.trim()); });
+        ocrLines = lines;
+        const guess = guessAddressFromLines(lines);
+        if (document.getElementById('imgExtractedAddr')) document.getElementById('imgExtractedAddr').value = guess;
+        document.getElementById('imgOcrLines').innerHTML = lines.map((l, i) =>
+          `<button class="btn-outline" style="padding:6px 9px; font-size:12px; font-weight:600; text-align:left;" onclick="pickOcrLine(${i})">${escapeHtml(l)}</button>`).join('');
+        status.textContent = lines.length === 0 ? 'Nem találtam szöveget a képen – írd be kézzel.'
+          : guess ? 'Javasolt cím kitöltve – ellenőrizd! Az alatta lévő sorokra koppintva módosíthatod.'
+          : 'Címet nem ismertem fel biztosan – koppints a sorokra az összeállításhoz.';
+      } catch (e) {
+        if (status) status.textContent = (e && e.message) ? e.message + ' – írd be kézzel.' : 'A felismerés nem sikerült – írd be kézzel.';
+      }
+    }
+
+    function pickOcrLine(i) {
+      const inp = document.getElementById('imgExtractedAddr');
+      if (!inp || !ocrLines[i]) return;
+      const cur = inp.value.trim();
+      inp.value = cur ? cur + ', ' + ocrLines[i] : ocrLines[i];
+    }
+
+    async function confirmImageStop() {
+      const val = document.getElementById('imgExtractedAddr').value.trim();
+      if (!val) return;
+      document.getElementById('quickAddrInput').value = val;
+      closeModal();
+      await quickAddStop();
+    }
+
+    /* ==========================================================================
+       TÉRKÉP KÉPERNYŐ
+       ========================================================================== */
+    let mapTapMarker = null;
+
+    function mapBadgeIcon(label, bg, fg) {
+      return L.divIcon({
+        className: '',
+        html: `<div style="background:${bg};color:${fg || '#051018'};border:2px solid #fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.55);padding:0 4px;">${label}</div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+    }
+
+    function mapHintIcon(name) {
+      return L.divIcon({
+        className: '',
+        html: `<div style="display:flex;align-items:center;gap:5px;transform:translate(-9px,-9px);width:max-content;">
+                 <span style="width:16px;height:16px;background:#F59E0B;border:2px solid #fff;transform:rotate(45deg);display:inline-block;box-shadow:0 1px 4px rgba(0,0,0,.55);"></span>
+                 <span style="background:rgba(15,20,26,.88);color:#F59E0B;font-size:11px;font-weight:800;padding:1px 6px;border-radius:5px;white-space:nowrap;">${escapeHtml(name)}</span>
+               </div>`,
+        iconSize: [0, 0]
+      });
+    }
+
+    async function onMapTap(e) {
+      if (appState.trip.active) return showToast('Járat aktív – új cím csak VISSZADOBÁS után.');
+      const lat = Number(e.latlng.lat.toFixed(6)), lng = Number(e.latlng.lng.toFixed(6));
+      if (mapTapMarker) leafletMap.removeLayer(mapTapMarker);
+      mapTapMarker = L.circleMarker([lat, lng], { radius: 10, color: '#fff', weight: 2, fillColor: '#00A8E8', fillOpacity: 0.9 }).addTo(leafletMap);
+      showToast('Cím keresése…');
+      const found = await reverseGeocode(lat, lng);
+      openModal(`
+        <div style="font-size:16px; font-weight:700;">Cím felvétele a térképről</div>
+        <div style="font-size:12px; color:var(--muted);">Pont: ${lat}, ${lng}${found ? '' : ' – a címet nem sikerült lekérni, írd be kézzel.'}</div>
+        <div>
+          <label>Cím (javítható)</label>
+          <input type="text" id="mapTapAddr" value="${escapeHtml(found || '')}" placeholder="pl. Kehidakustány, Kúria utca 6" />
+        </div>
+        <div class="row">
+          <button class="btn-cyan flex-1" onclick="confirmMapTapStop(${lat}, ${lng})">Beillesztés a járatba</button>
+          <button class="btn-outline" onclick="cancelMapTap()">Mégse</button>
+        </div>
+      `);
+    }
+
+    function cancelMapTap() {
+      if (mapTapMarker && leafletMap) { leafletMap.removeLayer(mapTapMarker); mapTapMarker = null; }
+      closeModal();
+    }
+
+    function confirmMapTapStop(lat, lng) {
+      const text = document.getElementById('mapTapAddr').value.trim();
+      if (!text) return showToast('Írd be a címet!');
+      const parsed = parseAddressMeta({ address: text });
+      const res = insertStopInDraft(appState.trip, {
+        id: 'stop_' + Date.now(), ...parsed, lat, lng,
+        phone: '', contactName: '', note: '', done: false, lock: false, detour: false
+      });
+      if (!res.ok) return showToast(res.message);
+      appState.trip = res.state;
+      persistState();
+      if (mapTapMarker) { leafletMap.removeLayer(mapTapMarker); mapTapMarker = null; }
+      closeModal();
+      renderMapScreen();
+      showToast('Cím beillesztve a térképről');
+    }
+
+    function renderMapScreen() {
+      setTimeout(() => {
+        if (!leafletMap) {
+          leafletMap = L.map('mapContainer').setView([46.88, 16.95], 10);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OSM'
+          }).addTo(leafletMap);
+          mapLayerGroup = L.layerGroup().addTo(leafletMap);
+          leafletMap.on('click', onMapTap);
+        }
+        leafletMap.invalidateSize();
+        mapLayerGroup.clearLayers();
+
+        const t = appState.trip;
+        const ok = p => p && Number(p.lat) && Number(p.lng);
+        const ll = p => [Number(p.lat), Number(p.lng)];
+        const all = [];
+
+        // Napi irány / gerinc: szaggatott vonal + a települések címkével
+        const hints = (t.corridorHints || []).filter(ok);
+        if (hints.length > 0) {
+          const spine = [t.start, ...hints, t.end].filter(ok).map(ll);
+          L.polyline(spine, { color: '#F59E0B', weight: 3, dashArray: '8 8', opacity: 0.9 }).addTo(mapLayerGroup);
+          hints.forEach(h => {
+            L.marker(ll(h), { icon: mapHintIcon(h.city || h.address), zIndexOffset: -100 }).addTo(mapLayerGroup);
+            all.push(ll(h));
+          });
+        }
+
+        // Start / Cél
+        const sameSE = ok(t.start) && ok(t.end) && haversineKm(t.start, t.end) < 0.6;
+        if (ok(t.start)) {
+          L.marker(ll(t.start), { icon: mapBadgeIcon(sameSE ? 'S/C' : 'S', '#10B981', '#051610'), zIndexOffset: 500 })
+            .bindPopup('<b>Start:</b> ' + escapeHtml(t.start.address)).addTo(mapLayerGroup);
+          all.push(ll(t.start));
+        }
+        if (ok(t.end) && !sameSE) {
+          L.marker(ll(t.end), { icon: mapBadgeIcon('C', '#EF4444', '#fff'), zIndexOffset: 500 })
+            .bindPopup('<b>Cél:</b> ' + escapeHtml(t.end.address)).addTo(mapLayerGroup);
+          all.push(ll(t.end));
+        }
+
+        // Megállók sorszámozva + útvonalvonal
+        const route = [];
+        if (ok(t.start)) route.push(ll(t.start));
+        t.stops.forEach((s, idx) => {
+          if (!ok(s)) return;
+          route.push(ll(s)); all.push(ll(s));
+          L.marker(ll(s), { icon: mapBadgeIcon(String(idx + 1), s.done ? '#10B981' : '#00A8E8') })
+            .bindPopup(`<b>${idx + 1}. ${escapeHtml(s.address)}</b><br/>${escapeHtml(s.phone || '')}`)
+            .addTo(mapLayerGroup);
+        });
+        if (ok(t.end)) route.push(ll(t.end));
+        if (route.length > 1) {
+          L.polyline(route, { color: t.color || '#00A8E8', weight: 4 }).addTo(mapLayerGroup);
+        }
+
+        if (all.length > 1) leafletMap.fitBounds(L.latLngBounds(all), { padding: [40, 40] });
+        else if (all.length === 1) leafletMap.setView(all[0], 12);
+
+        const totalKm = pathCost(t.start, t.stops, t.end);
+        document.getElementById('mapDistanceBadge').textContent = `${totalKm.toFixed(2)} km`;
+      }, 80);
+    }
+
+    /* ==========================================================================
+       CÍMJEGYZÉK ADATBÁZIS + MAPPA / FÁJL MENTÉS
+       ========================================================================== */
+    function renderAddressBook() {
+      const q = (document.getElementById('dbSearchInput').value || '').toLowerCase();
+      const filtered = appState.addressDatabase.filter(d =>
+        d.address.toLowerCase().includes(q) ||
+        (d.contactName || '').toLowerCase().includes(q) ||
+        (d.phone || '').toLowerCase().includes(q)
+      );
+
+      document.getElementById('dbCountTitle').textContent = appState.addressDatabase.length;
+      const container = document.getElementById('dbContainer');
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="card" style="text-align:center; color:var(--muted);">Nincs találat a Címjegyzékben.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(d => `
+        <div class="stop-card">
+          <div class="stop-top">
+            <div class="stop-info">
+              <div class="stop-addr">${escapeHtml(d.address)}</div>
+              <div class="stop-sub">
+                ${d.contactName ? `👤 ${escapeHtml(d.contactName)} ` : ''}
+                ${d.phone ? `📞 ${escapeHtml(d.phone)}` : 'Nincs telefonszám'}
+              </div>
+            </div>
+          </div>
+          <div class="stop-actions" style="grid-template-columns: repeat(3, 1fr);">
+            <button class="act-btn" style="color:var(--call-green);" onclick="callDbNumber('${escapeHtml(d.phone || '')}')">📞 Hívás</button>
+            <button class="act-btn" style="color:var(--cyan);" onclick="addDbItemToTrip('${d.id}')">+ Járatba</button>
+            <button class="act-btn" style="color:var(--red);" onclick="deleteDbItem('${d.id}')">Törlés</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function callDbNumber(phone) {
+      if (!phone) return showToast('Nincs telefonszám mentve ehhez a címhez');
+      nativeTel(phone);
+    }
+
+    function addDbItemToTrip(id) {
+      if (appState.trip.active) return showToast('Járat aktív! Előbb nyomj VISSZADOBÁS-t.');
+      const item = appState.addressDatabase.find(d => d.id === id);
+      if (!item) return;
+      const res = insertStopInDraft(appState.trip, {
+        ...item,
+        id: 'stop_' + Date.now(),
+        done: false,
+        lock: false,
+        detour: false
+      });
+      if (res.ok) {
+        appState.trip = res.state;
+        persistState();
+        showToast('Hozzáadva a napi járathoz');
+      }
+    }
+
+    function deleteDbItem(id) {
+      appState.addressDatabase = appState.addressDatabase.filter(d => d.id !== id);
+      persistState();
+      renderAddressBook();
+    }
+
+    function openDbPickerModal() {
+      const itemsHtml = appState.addressDatabase.map(d => `
+        <button class="menu-btn" style="padding:10px;" onclick="addDbItemToTrip('${d.id}'); closeModal(); renderStopList();">
+          <div>
+            <div style="font-size:14px;">${escapeHtml(d.address)}</div>
+            <div style="font-size:12px; color:var(--muted);">${escapeHtml(d.contactName || '')} ${escapeHtml(d.phone || '')}</div>
+          </div>
+        </button>
+      `).join('');
+      openModal(`
+        <div style="font-size:16px; font-weight:700;">Válassz a mentett adatbázisból</div>
+        <div style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">${itemsHtml}</div>
+        <button class="btn-outline" onclick="closeModal()">Bezárás</button>
+      `);
+    }
+
+    function openNewDbModal() {
+      openModal(`
+        <div style="font-size:16px; font-weight:700;">Új cím mentése az adatbázisba</div>
+        <div><label>Cím (Település, utca, házszám)</label><input type="text" id="newDbAddr" placeholder="pl. Zalaszentgrót, Batthyány utca 10" /></div>
+        <div><label>Név</label><input type="text" id="newDbName" placeholder="Ügyfél neve" /></div>
+        <div><label>Telefonszám</label><input type="tel" id="newDbPhone" placeholder="+36301234567" /></div>
+        <div class="row">
+          <button class="btn-cyan flex-1" onclick="saveNewDbItem()">Mentés</button>
+          <button class="btn-outline" onclick="closeModal()">Mégse</button>
+        </div>
+      `);
+    }
+
+    async function saveNewDbItem() {
+      const addr = document.getElementById('newDbAddr').value.trim();
+      if (!addr) return;
+      const geo = await resolveAddressGeo(addr, { lat: 46.94, lng: 17.08 });
+      appState.addressDatabase.push({
+        id: 'db_' + Date.now(),
+        ...geo,
+        contactName: document.getElementById('newDbName').value.trim(),
+        phone: document.getElementById('newDbPhone').value.trim(),
+        note: ''
+      });
+      persistState();
+      closeModal();
+      renderAddressBook();
+      showToast('Új törzscím elmentve');
+    }
+
+    async function saveDatabaseToFolder() {
+      const payload = JSON.stringify({
+        app: 'Optimus3',
+        version: '17v12',
+        exportedAt: new Date().toISOString(),
+        addressDatabase: appState.addressDatabase
+      }, null, 2);
+
+      // APK: natív fájlírás a Dokumentumok/Optimus3_DB mappába + megosztás
+      if (await nativeSaveJson('optimus3_cimek_db.json', payload)) return;
+
+      // Ha támogatott a mappa-választó (File System Access API)
+      if ('showDirectoryPicker' in window) {
+        try {
+          const dirHandle = await window.showDirectoryPicker();
+          const fileHandle = await dirHandle.getFileHandle('optimus3_cimek_db.json', { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(payload);
+          await writable.close();
+          return showToast('Adatbázis elmentve a kiválasztott mappába!');
+        } catch (e) {}
+      }
+
+      // Tartalék: letölthető JSON fájl
+      const blob = new Blob([payload], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'optimus3_cimek_db.json';
+      a.click();
+      showToast('Adatbázis letöltve JSON fájlként');
+    }
+
+    function importDatabaseFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          if (Array.isArray(parsed.addressDatabase)) {
+            appState.addressDatabase = parsed.addressDatabase;
+            persistState();
+            showToast(`Betöltve: ${parsed.addressDatabase.length} mentett cím`);
+          }
+        } catch (e) {
+          showToast('Hibás adatbázis fájl!');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    /* ==========================================================================
+       TOMTOM API ÉS GEOKÓDOLÁS (OFFLINE TARTALÉKKAL)
+       ========================================================================== */
+    function saveSettings() {
+      appState.settings.tomtomApiKey = document.getElementById('setTomTomKey').value.trim();
+      appState.settings.defaultNav = document.getElementById('setDefaultNav').value;
+      persistState();
+      showToast('Beállítások mentve');
+    }
+
+    async function testTomTomKey() {
+      const key = document.getElementById('setTomTomKey').value.trim();
+      if (!key) return showToast('Adj meg egy TomTom API kulcsot!');
+      try {
+        const res = await fetch(`https://api.tomtom.com/search/2/geocode/Zalaegerszeg.json?key=${encodeURIComponent(key)}&limit=1`);
+        if (res.ok) showToast('TomTom API kapcsolat OK!');
+        else showToast('Hibás TomTom API kulcs (' + res.status + ')');
+      } catch (e) {
+        showToast('Nincs internetkapcsolat a teszthez');
+      }
+    }
+
+    const GEO_CACHE_KEY = 'optimus3_geocache';
+    function geoCacheGet(k) {
+      try { const c = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}'); return c[String(k).toLowerCase()] || null; } catch (e) { return null; }
+    }
+    function geoCacheSet(k, v) {
+      try {
+        const c = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}');
+        c[String(k).toLowerCase()] = v;
+        localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(c));
+      } catch (e) {}
+    }
+
+    // TomTom -> (tartalék) OpenStreetMap Nominatim. Null, ha nincs találat / nincs net.
+    async function geocodeOnline(text) {
+      const key = appState.settings.tomtomApiKey;
+      if (key) {
+        try {
+          const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(text)}.json?key=${encodeURIComponent(key)}&countrySet=HU&limit=1`;
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const data = await resp.json();
+            const r = data.results && data.results[0];
+            if (r && r.position) return { lat: r.position.lat, lng: r.position.lon };
+          }
+        } catch (e) {}
+      }
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=hu&accept-language=hu&q=${encodeURIComponent(text)}`;
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const arr = await resp.json();
+          if (Array.isArray(arr) && arr[0]) return { lat: Number(arr[0].lat), lng: Number(arr[0].lon) };
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    async function reverseGeocode(lat, lng) {
+      const key = appState.settings.tomtomApiKey;
+      if (key) {
+        try {
+          const url = `https://api.tomtom.com/search/2/reverseGeocode/${lat},${lng}.json?key=${encodeURIComponent(key)}&language=hu-HU&radius=150`;
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const data = await resp.json();
+            const a = data.addresses && data.addresses[0] && data.addresses[0].address;
+            if (a) {
+              const city = a.municipality || a.localName || '';
+              const street = a.streetName || '';
+              const no = a.streetNumber || '';
+              if (city && street) return `${city}, ${street} ${no}`.trim();
+              if (a.freeformAddress) return a.freeformAddress;
+              if (city) return city;
+            }
+          }
+        } catch (e) {}
+      }
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=hu&lat=${lat}&lon=${lng}`;
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const d = await resp.json();
+          const a = d && d.address;
+          if (a) {
+            const city = a.city || a.town || a.village || a.hamlet || a.municipality || '';
+            const street = a.road || a.pedestrian || '';
+            const no = a.house_number || '';
+            if (city && street) return `${city}, ${street} ${no}`.trim();
+            if (city) return city;
+          }
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    // opts.strict = true: ha nincs valódi találat, null-t ad (nem talál ki koordinátát)
+    async function resolveAddressGeo(rawAddress, fallbackCenter, opts = {}) {
+      const parsed = parseAddressMeta({ address: rawAddress });
+
+      // 1. Helyi Címjegyzék
+      const dbMatch = appState.addressDatabase.find(
+        d => d.address.toLowerCase() === String(rawAddress).toLowerCase()
+      );
+      if (dbMatch && dbMatch.lat && dbMatch.lng) {
+        return { ...parsed, lat: dbMatch.lat, lng: dbMatch.lng };
+      }
+
+      // 2. Korábban már megtalált cím (offline is működik)
+      const cached = geoCacheGet(rawAddress);
+      if (cached) return { ...parsed, lat: cached.lat, lng: cached.lng };
+
+      // 3. Online keresés
+      if (navigator.onLine) {
+        const g = await geocodeOnline(rawAddress);
+        if (g && g.lat && g.lng) {
+          geoCacheSet(rawAddress, g);
+          return { ...parsed, lat: g.lat, lng: g.lng };
+        }
+      }
+
+      if (opts.strict) return null;
+
+      // 4. Végső tartalék: közelítő pozíció (jelölve)
+      showToast('Közelítő pozíció: ' + rawAddress + ' (nincs net / TomTom kulcs)');
+      const hash = Array.from(rawAddress).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+      const offsetLat = ((hash % 40) - 20) * 0.0025;
+      const offsetLng = (((hash * 7) % 40) - 20) * 0.003;
+      return {
+        ...parsed,
+        approx: true,
+        lat: Number(((fallbackCenter?.lat || 46.88) + offsetLat).toFixed(5)),
+        lng: Number(((fallbackCenter?.lng || 16.95) + offsetLng).toFixed(5))
+      };
+    }
+
+    /* ==========================================================================
+       SEGÉDFÜGGVÉNYEK (MODÁL, XSS VÉDELEM)
+       ========================================================================== */
+    function openModal(html) {
+      document.getElementById('modalContent').innerHTML = html;
+      document.getElementById('modalBackdrop').classList.add('open');
+    }
+    function closeModal() {
+      document.getElementById('modalBackdrop').classList.remove('open');
+    }
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    /* ==========================================================================
+       ÚTVONAL-OPTIMALIZÁLÓ MOTOR (v18-unified)
+       ========================================================================== */
+    function createTripState(initial = {}) {
+      return {
+        active: Boolean(initial.active),
+        name: initial.name || '',
+        date: initial.date || '',
+        start: initial.start || null,
+        end: initial.end || null,
+        corridorHints: Array.isArray(initial.corridorHints) ? [...initial.corridorHints] : [],
+        stops: Array.isArray(initial.stops) ? initial.stops.map(s => ({ ...s })) : [],
+        pendingChoices: []
+      };
+    }
+
+    function revertTripToDraft(state) {
+      return { ...state, active: false };
+    }
+
+    function insertStopInDraft(state, newStop) {
+      if (state.active) {
+        return { ok: false, message: 'A járat ki van indítva. Előbb dobd vissza szerkesztőbe!', state };
+      }
+      const stopWithMeta = parseAddressMeta({
+        ...newStop,
+        done: Boolean(newStop.done),
+        lock: Boolean(newStop.lock),
+        detour: Boolean(newStop.detour)
+      });
+      return { ok: true, state: { ...state, stops: [...state.stops, stopWithMeta] } };
+    }
+
+    function runTripOptimization(state, resolvedChoices = {}) {
+      if (state.active) {
+        return { ok: false, message: 'Aktív járat nem optimalizálható visszadobás nélkül.', state };
+      }
+      const doneStops = state.stops.filter(s => s.done);
+      const openStops = state.stops.filter(s => !s.done);
+      if (openStops.length === 0) {
+        return { ok: true, state: { ...state, stops: [...doneStops], pendingChoices: [] } };
+      }
+      const anchorStart = doneStops.length > 0
+        ? parseAddressMeta(doneStops[doneStops.length - 1])
+        : parseAddressMeta(state.start);
+      const endMeta = state.end ? parseAddressMeta(state.end) : { ...anchorStart };
+
+      const { orderedOpen, pendingChoices } = optimizeDeliveryOrder(
+        anchorStart, endMeta, openStops, state.corridorHints, resolvedChoices
+      );
+      const mergedOpen = applyLockedPositions(openStops, orderedOpen);
+      return {
+        ok: true,
+        state: { ...state, stops: [...doneStops, ...mergedOpen], pendingChoices }
+      };
+    }
+
+    function startTrip(state) {
+      return { ...state, active: true, pendingChoices: [] };
+    }
+
+    function optimizeDeliveryOrder(start, end, stops, corridorHints = [], resolvedChoices = {}) {
+      const pendingChoices = [];
+      if (!stops || stops.length === 0) return { orderedOpen: [], pendingChoices };
+      if (stops.length === 1) return { orderedOpen: [parseAddressMeta(stops[0])], pendingChoices };
+
+      const normalizedStops = stops.map(s => parseAddressMeta(s));
+      const startMeta = parseAddressMeta(start);
+      const endMeta = end ? parseAddressMeta(end) : { ...startMeta };
+      const hintsMeta = (corridorHints || []).map(h => parseAddressMeta(h));
+
+      const validHints = hintsMeta.filter(h => h.lat && h.lng && !h.approx);
+      const distStartEnd = haversineKm(startMeta, endMeta);
+      const isLoopMode = distStartEnd < 0.6 || (isSameCity(startMeta.city, endMeta.city) && distStartEnd < 2.5);
+
+      // Ha van megadott gerinc (napi irány), az mindig irányadó – zárt körnél is.
+      if (isLoopMode && validHints.length === 0) {
+        return { orderedOpen: solveLoopMode(startMeta, endMeta, normalizedStops), pendingChoices };
+      }
+      return solveCorridorWithConditionalSpurs(startMeta, endMeta, normalizedStops, validHints, resolvedChoices);
+    }
+
+    function solveLoopMode(start, end, stops) {
+      if (stops.length <= 1) return [...stops];
+      let apex = stops[0], maxDist = -1;
+      for (const s of stops) {
+        const d = haversineKm(start, s);
+        if (d > maxDist) { maxDist = d; apex = s; }
+      }
+      const outbound = [], inbound = [];
+      for (const s of stops) {
+        if (s === apex) continue;
+        if (crossProduct(start, apex, s) >= 0) outbound.push(s);
+        else inbound.push(s);
+      }
+      outbound.sort((a, b) => haversineKm(start, a) - haversineKm(start, b));
+      inbound.sort((a, b) => haversineKm(apex, a) - haversineKm(apex, b));
+      const forward = [...outbound, apex, ...inbound];
+      const backward = [...forward].reverse();
+      const chosen = pathCost(start, forward, end) <= pathCost(start, backward, end) ? forward : backward;
+      return applyStreetAndHouseNumberOrder(chosen, start, end);
+    }
+
+    function solveCorridorWithConditionalSpurs(start, end, stops, hintsMeta, resolvedChoices) {
+      const pendingChoices = [];
+      const { spurCandidates, backboneStops } = splitConditionalDetours(start, end, stops, hintsMeta);
+      const backboneClusters = Object.values(groupByCity(backboneStops));
+
+      let startCluster = null, endCluster = null;
+      const transitClusters = [];
+      for (const c of backboneClusters) {
+        if (isSameCity(c.city, start.city)) startCluster = c;
+        else if (isSameCity(c.city, end.city)) endCluster = c;
+        else transitClusters.push(c);
+      }
+
+      let orderedClusters = [];
+      const { hub, spurs, regularClusters } = detectHubAndSpurs(start, end, transitClusters);
+
+      if (hintsMeta.length > 0) {
+        orderedClusters = orderClustersBySpine(start, end, hintsMeta, transitClusters);
+      } else if (hub && spurs.length > 0) {
+        const outbound = [], inbound = [];
+        for (const rc of regularClusters) {
+          const proj = projectionFactor(start, hub.center, rc.center);
+          if (proj >= -0.25 && proj <= 1.25) outbound.push(rc);
+          else inbound.push(rc);
+        }
+        outbound.sort((a, b) => haversineKm(start, a.center) - haversineKm(start, b.center));
+        spurs.sort((a, b) => haversineKm(hub.center, a.center) - haversineKm(hub.center, b.center));
+        const orderedInbound = orderChainGreedyWithAngle(hub.center, end, inbound);
+
+        const choiceId = `hub_spur_${(hub.city || '').toLowerCase()}`;
+        if (spurs.length === 1 && resolvedChoices[choiceId] === 'SPUR_FIRST') {
+          orderedClusters = [...outbound, hub, ...spurs, ...orderedInbound];
+        } else {
+          orderedClusters = [...outbound, ...spurs, hub, ...orderedInbound];
+        }
+
+        if (spurs.length === 1) {
+          const dHubEnd = haversineKm(hub.center, end);
+          const dSpurEnd = haversineKm(spurs[0].center, end);
+          if (Math.abs(dSpurEnd - dHubEnd) < 6) {
+            pendingChoices.push({
+              id: choiceId,
+              question: `Előbb ${hub.city} vagy ${spurs[0].city}?`,
+              optionA: { key: 'HUB_FIRST', label: `${hub.city} → ${spurs[0].city}` },
+              optionB: { key: 'SPUR_FIRST', label: `${spurs[0].city} → ${hub.city}` }
+            });
+          }
+        }
+      } else {
+        orderedClusters = orderTeardropLoop(start, end, transitClusters);
+      }
+
+      const spineStops = assembleClusterStops(start, end, startCluster, orderedClusters, endCluster);
+      const finalStops = attachConditionalDetours(start, end, spineStops, spurCandidates, resolvedChoices, pendingChoices);
+      return { orderedOpen: applyStreetAndHouseNumberOrder(finalStops, start, end), pendingChoices };
+    }
+
+    function splitConditionalDetours(start, end, stops, hintsMeta) {
+      const spurCandidates = [], backboneStops = [];
+      const directDist = Math.max(haversineKm(start, end), 10);
+      const corridorRef = hintsMeta.length > 0 ? hintsMeta : [start, end];
+
+      for (const s of stops) {
+        if (s.lock) { backboneStops.push(s); continue; }
+        const minDistToCorridor = minDistanceToPolylineKm(s, corridorRef);
+        const extraViaPoint = haversineKm(start, s) + haversineKm(s, end) - directDist;
+        const isExtremeOutlier = extraViaPoint > directDist * 1.6 && minDistToCorridor > 25;
+        if (s.detour || isExtremeOutlier) {
+          spurCandidates.push({ stop: s, extremeOutlier: isExtremeOutlier });
+        } else {
+          backboneStops.push(s);
+        }
+      }
+      return { spurCandidates, backboneStops };
+    }
+
+    function attachConditionalDetours(start, end, spineStops, spurCandidates, resolvedChoices, pendingChoices) {
+      if (!spurCandidates || spurCandidates.length === 0) return spineStops;
+      const result = [...spineStops];
+      const normalDetours = spurCandidates.filter(x => !x.extremeOutlier);
+      const extremeOutliers = spurCandidates.filter(x => x.extremeOutlier);
+
+      for (const item of normalDetours) {
+        const candidate = item.stop;
+        let bestIdx = result.length, bestDelta = Infinity, secondBestDelta = Infinity, secondBestIdx = -1;
+        for (let i = 0; i <= result.length; i++) {
+          const prev = i === 0 ? start : result[i - 1];
+          const next = i === result.length ? end : result[i];
+          const delta = haversineKm(prev, candidate) + haversineKm(candidate, next) - haversineKm(prev, next);
+          if (delta < bestDelta) {
+            secondBestDelta = bestDelta; secondBestIdx = bestIdx;
+            bestDelta = delta; bestIdx = i;
+          } else if (delta < secondBestDelta) {
+            secondBestDelta = delta; secondBestIdx = i;
+          }
+        }
+        const choiceId = `detour_${candidate.id || bestIdx}`;
+        if (secondBestIdx !== -1 && Math.abs(secondBestDelta - bestDelta) < 4) {
+          const chosenSlot = resolvedChoices[choiceId] === 'ALT_SLOT' ? secondBestIdx : bestIdx;
+          pendingChoices.push({
+            id: choiceId,
+            question: `Hol fűzzük be a kitérőt (${candidate.city || candidate.address})?`,
+            optionA: { key: 'BEST_SLOT', label: `${bestIdx + 1}. hely környékén` },
+            optionB: { key: 'ALT_SLOT', label: `${secondBestIdx + 1}. hely környékén` }
+          });
+          result.splice(chosenSlot, 0, candidate);
+        } else {
+          result.splice(bestIdx, 0, candidate);
+        }
+      }
+      for (const out of extremeOutliers) result.push(out.stop);
+      return result;
+    }
+
+    function detectHubAndSpurs(start, end, clusters) {
+      if (!clusters || clusters.length < 2) return { hub: null, spurs: [], regularClusters: clusters || [] };
+      let bestHub = null, bestSpurs = [], bestScore = -1;
+
+      for (const candidateHub of clusters) {
+        const spursForCandidate = [];
+        const dStartHub = haversineKm(start, candidateHub.center);
+        const dEndHub = haversineKm(end, candidateHub.center);
+        for (const other of clusters) {
+          if (other === candidateHub) continue;
+          const dStartOther = haversineKm(start, other.center);
+          const dEndOther = haversineKm(end, other.center);
+          const dHubOther = haversineKm(candidateHub.center, other.center);
+          const spurRatio = dHubOther / Math.max(dStartHub, dEndHub, 1);
+          const angleOut = turnAngleDeg(start, candidateHub.center, other.center);
+          const angleBack = turnAngleDeg(other.center, candidateHub.center, end);
+          const detourRatio = (dStartHub + dHubOther * 2 + dEndHub) / Math.max(dStartOther + dEndOther, 1);
+          if (dStartOther > dStartHub && dEndOther > dEndHub && spurRatio < 0.85 && angleOut < 80 && angleBack > 85 && detourRatio > 1.04) {
+            spursForCandidate.push(other);
+          }
+        }
+        if (spursForCandidate.length > 0) {
+          const score = candidateHub.stops.length * 2 + spursForCandidate.length * 5;
+          if (score > bestScore) { bestScore = score; bestHub = candidateHub; bestSpurs = spursForCandidate; }
+        }
+      }
+      if (!bestHub) return { hub: null, spurs: [], regularClusters: clusters };
+      return { hub: bestHub, spurs: bestSpurs, regularClusters: clusters.filter(c => c !== bestHub && !bestSpurs.includes(c)) };
+    }
+
+    // A napi gerinc: Start -> megadott települések (sorrendben) -> Cél.
+    // Minden települést (klasztert) a gerinc legközelebbi szakaszára vetítünk, és a gerinc mentén rendezünk.
+    function spineParam(p, spine) {
+      const kx = 111.32 * Math.cos((p.lat * Math.PI) / 180), ky = 110.57;
+      let best = { d: Infinity, t: 0 }, acc = 0;
+      for (let i = 0; i < spine.length - 1; i++) {
+        const a = spine[i], b = spine[i + 1];
+        const ax = (a.lng - p.lng) * kx, ay = (a.lat - p.lat) * ky;
+        const bx = (b.lng - p.lng) * kx, by = (b.lat - p.lat) * ky;
+        const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
+        const f = len2 < 1e-9 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2));
+        const d = Math.hypot(ax + f * dx, ay + f * dy);
+        if (d < best.d) best = { d, t: acc + f * len };
+        acc += len;
+      }
+      return best;
+    }
+
+    function orderClustersBySpine(start, end, hints, clusters) {
+      const spine = [start, ...hints, end];
+      return clusters
+        .map(c => ({ c, t: spineParam(c.center, spine).t }))
+        .sort((x, y) => x.t - y.t)
+        .map(x => x.c);
+    }
+
+    function orderTeardropLoop(start, end, clusters) {
+      if (!clusters || clusters.length === 0) return [];
+      const direct = haversineKm(start, end);
+      let apex = clusters[0], maxDetour = -Infinity;
+      for (const c of clusters) {
+        const detour = haversineKm(start, c.center) + haversineKm(c.center, end) - direct;
+        if (detour > maxDetour) { maxDetour = detour; apex = c; }
+      }
+      const outbound = [], inbound = [];
+      for (const c of clusters) {
+        if (c === apex) continue;
+        if (crossProduct(start, apex.center, c.center) >= 0) outbound.push(c);
+        else inbound.push(c);
+      }
+      const pathA = [...orderChainGreedyWithAngle(start, apex.center, outbound), apex, ...orderChainGreedyWithAngle(apex.center, end, inbound)];
+      const pathB = [...orderChainGreedyWithAngle(start, apex.center, inbound), apex, ...orderChainGreedyWithAngle(apex.center, end, outbound)];
+      return clusterChainCost(start, pathA, end) <= clusterChainCost(start, pathB, end) ? pathA : pathB;
+    }
+
+    function assembleClusterStops(start, end, startCluster, orderedClusters, endCluster) {
+      const result = [];
+      if (startCluster) {
+        const firstStop = findClosestStop(start, startCluster.stops);
+        result.push(firstStop);
+        const rest = startCluster.stops.filter(s => s !== firstStop);
+        if (rest.length > 0) {
+          const nextTarget = orderedClusters.length > 0 ? orderedClusters[0].center : endCluster ? endCluster.center : end;
+          result.push(...sortClusterInternal(rest, firstStop, nextTarget));
+        }
+      }
+      for (let i = 0; i < orderedClusters.length; i++) {
+        const current = orderedClusters[i];
+        const prevPoint = result.length > 0 ? result[result.length - 1] : start;
+        const nextPoint = i + 1 < orderedClusters.length ? orderedClusters[i + 1].center : endCluster ? endCluster.center : end;
+        result.push(...sortClusterInternal(current.stops, prevPoint, nextPoint));
+      }
+      if (endCluster) {
+        const prevPoint = result.length > 0 ? result[result.length - 1] : start;
+        result.push(...sortClusterInternal(endCluster.stops, prevPoint, end));
+      }
+      return result;
+    }
+
+    function sortClusterInternal(stops, entryPoint, exitPoint) {
+      if (!stops || stops.length <= 1) return [...(stops || [])];
+      const dx = exitPoint.lng - entryPoint.lng, dy = exitPoint.lat - entryPoint.lat;
+      const lenSq = dx * dx + dy * dy;
+      const projected = [...stops].sort((a, b) => {
+        if (lenSq < 1e-9) return haversineKm(entryPoint, a) - haversineKm(entryPoint, b);
+        const projA = ((a.lng - entryPoint.lng) * dx + (a.lat - entryPoint.lat) * dy) / lenSq;
+        const projB = ((b.lng - entryPoint.lng) * dx + (b.lat - entryPoint.lat) * dy) / lenSq;
+        return projA - projB;
+      });
+      return applyStreetAndHouseNumberOrder(projected, entryPoint, exitPoint);
+    }
+
+    function applyStreetAndHouseNumberOrder(stops, entryPoint, exitPoint) {
+      if (!stops || stops.length <= 1) return [...(stops || [])];
+      const blocks = [];
+      for (const s of stops) {
+        const last = blocks[blocks.length - 1];
+        if (last && s.street && last[0].street && isSameCity(s.city, last[0].city) && s.street.toLowerCase() === last[0].street.toLowerCase()) {
+          last.push(s);
+        } else {
+          blocks.push([s]);
+        }
+      }
+      const output = [];
+      for (const block of blocks) {
+        if (block.length <= 1) { output.push(block[0]); continue; }
+        const prev = output.length > 0 ? output[output.length - 1] : entryPoint;
+        const asc = [...block].sort((a, b) => (a.houseNumber || 0) - (b.houseNumber || 0));
+        const desc = [...asc].reverse();
+        output.push(...(haversineKm(prev, asc[0]) <= haversineKm(prev, desc[0]) ? asc : desc));
+      }
+      return output;
+    }
+
+    function applyLockedPositions(originalOpenStops, orderedOpen) {
+      const lockedEntries = [];
+      originalOpenStops.forEach((s, idx) => { if (s.lock) lockedEntries.push({ stop: s, targetIdx: idx }); });
+      if (lockedEntries.length === 0) return orderedOpen;
+      const result = orderedOpen.filter(s => !s.lock);
+      for (const entry of lockedEntries) {
+        const insertAt = Math.max(0, Math.min(entry.targetIdx, result.length));
+        if (!result.find(x => x.id && entry.stop.id && x.id === entry.stop.id)) {
+          result.splice(insertAt, 0, entry.stop);
+        }
+      }
+      return result;
+    }
+
+    function haversineKm(p1, p2) {
+      if (!p1 || !p2) return 0;
+      const R = 6371;
+      const dLat = ((p2.lat || 0) - (p1.lat || 0)) * (Math.PI / 180);
+      const dLng = ((p2.lng || 0) - (p1.lng || 0)) * (Math.PI / 180);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos((p1.lat || 0) * (Math.PI / 180)) * Math.cos((p2.lat || 0) * (Math.PI / 180)) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(Math.min(1, Math.max(0, a))), Math.sqrt(1 - Math.min(1, Math.max(0, a))));
+    }
+
+    function minDistanceToPolylineKm(pt, poly) {
+      if (!poly || poly.length === 0) return 0;
+      return Math.min(...poly.map(p => haversineKm(pt, p)));
+    }
+
+    function turnAngleDeg(a, b, c) {
+      const v1x = b.lng - a.lng, v1y = b.lat - a.lat, v2x = c.lng - b.lng, v2y = c.lat - b.lat;
+      const mag1 = Math.hypot(v1x, v1y), mag2 = Math.hypot(v2x, v2y);
+      if (mag1 < 1e-9 || mag2 < 1e-9) return 0;
+      return (Math.acos(Math.max(-1, Math.min(1, (v1x * v2x + v1y * v2y) / (mag1 * mag2)))) * 180) / Math.PI;
+    }
+
+    function crossProduct(a, b, c) {
+      return (b.lng - a.lng) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lng - a.lng);
+    }
+
+    function projectionFactor(a, b, p) {
+      const dx = b.lng - a.lng, dy = b.lat - a.lat, lenSq = dx * dx + dy * dy;
+      return lenSq < 1e-9 ? 0 : ((p.lng - a.lng) * dx + (p.lat - a.lat) * dy) / lenSq;
+    }
+
+    function getCentroid(points) {
+      if (!points || points.length === 0) return { lat: 0, lng: 0 };
+      const sum = points.reduce((acc, p) => ({ lat: acc.lat + (p.lat || 0), lng: acc.lng + (p.lng || 0) }), { lat: 0, lng: 0 });
+      return { lat: sum.lat / points.length, lng: sum.lng / points.length };
+    }
+
+    function pathCost(start, list, end) {
+      if (!list || list.length === 0) return haversineKm(start, end);
+      let total = haversineKm(start, list[0]);
+      for (let i = 0; i < list.length - 1; i++) total += haversineKm(list[i], list[i + 1]);
+      return total + haversineKm(list[list.length - 1], end);
+    }
+
+    function clusterChainCost(start, clusters, end) {
+      if (!clusters || clusters.length === 0) return haversineKm(start, end);
+      let total = haversineKm(start, clusters[0].center);
+      for (let i = 0; i < clusters.length - 1; i++) total += haversineKm(clusters[i].center, clusters[i + 1].center);
+      return total + haversineKm(clusters[clusters.length - 1].center, end);
+    }
+
+    function orderChainGreedyWithAngle(startPt, endPt, clusters) {
+      const remaining = [...(clusters || [])], ordered = [];
+      let currentPos = startPt;
+      while (remaining.length > 0) {
+        let bestIdx = 0, bestScore = Infinity;
+        for (let i = 0; i < remaining.length; i++) {
+          const cand = remaining[i].center;
+          const score = haversineKm(currentPos, cand) + (turnAngleDeg(currentPos, cand, endPt) / 180) * 8;
+          if (score < bestScore) { bestScore = score; bestIdx = i; }
+        }
+        const chosen = remaining.splice(bestIdx, 1)[0];
+        ordered.push(chosen);
+        currentPos = chosen.center;
+      }
+      return ordered;
+    }
+
+    function parseAddressMeta(item) {
+      if (!item) return { lat: 0, lng: 0, city: '', street: '', houseNumber: 0 };
+      const raw = (item.address || '').trim();
+      const parts = raw.split(',').map(p => p.trim());
+      const city = item.city || parts[0] || '';
+      const streetPart = parts[1] || '';
+      const numMatch = streetPart.match(/(\d+)/);
+      const houseNumber = item.houseNumber ?? (numMatch ? parseInt(numMatch[1], 10) : 0);
+      const street = item.street || streetPart.replace(/\d+.*$/, '').trim();
+      return { ...item, lat: Number(item.lat) || 0, lng: Number(item.lng) || 0, city, street, houseNumber };
+    }
+
+    function groupByCity(stops) {
+      const map = {};
+      for (const s of stops || []) {
+        const key = (s.city || 'Ismeretlen').trim().toLowerCase();
+        if (!map[key]) map[key] = { city: s.city, stops: [], center: { lat: 0, lng: 0 } };
+        map[key].stops.push(s);
+      }
+      for (const key of Object.keys(map)) map[key].center = getCentroid(map[key].stops);
+      return map;
+    }
+
+    function isSameCity(c1, c2) {
+      return Boolean(c1 && c2 && c1.trim().toLowerCase() === c2.trim().toLowerCase());
+    }
+
+    function findClosestStop(target, stops) {
+      let best = stops[0], minDist = haversineKm(target, best);
+      for (const s of stops) {
+        const d = haversineKm(target, s);
+        if (d < minDist) { minDist = d; best = s; }
+      }
+      return best;
+    }
+
+    // Induláskor ha már be volt jelentkezve, rögtön a Főmenüre lép
+    if (appState.user) {
+      showScreen('home');
+    }
+  </script>
+</body>
+</html>
